@@ -13,6 +13,10 @@ export default function App() {
 
   const [teamCount, setTeamCount] = useState(2);
   const [teamSize, setTeamSize] = useState(5);
+  const [formation, setFormation] = useState("4-4-2");
+  const [tournamentType, setTournamentType] = useState("round-robin");
+  const [subs, setSubs] = useState(3);
+  const [simulationResults, setSimulationResults] = useState(null);
 
   const resetTeams = () => {
     setTeams(null);
@@ -66,7 +70,10 @@ export default function App() {
       body: JSON.stringify({
         players,
         teamCount,
-        teamSize
+        teamSize,
+        formation,
+        tournamentType,
+        subs
       }),
     });
 
@@ -80,6 +87,17 @@ export default function App() {
       const auto = generateScheduleFromTeams(data.teams);
       setSchedule(auto);
     }
+  };
+
+  const simulateTournament = async () => {
+    if (!teams) return;
+    const res = await fetch("http://127.0.0.1:8000/simulate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teams, schedule, mode: tournamentType }),
+    });
+    const data = await res.json();
+    setSimulationResults(data);
   };
 
   return (
@@ -118,6 +136,35 @@ export default function App() {
         </div>
       </div>
 
+      <div className="flex gap-3 items-center mb-4">
+        <label className="flex items-center gap-2">
+          <span className="text-sm">Formation</span>
+          <select className="p-2 border rounded" value={formation} onChange={(e) => setFormation(e.target.value)}>
+            <option>4-4-2</option>
+            <option>4-3-3</option>
+            <option>3-5-2</option>
+            <option>Custom</option>
+          </select>
+        </label>
+
+        <label className="flex items-center gap-2">
+          <span className="text-sm">Tournament</span>
+          <select className="p-2 border rounded" value={tournamentType} onChange={(e) => setTournamentType(e.target.value)}>
+            <option value="round-robin">Round-robin</option>
+            <option value="knockout">Knockout</option>
+          </select>
+        </label>
+
+        <label className="flex items-center gap-2">
+          <span className="text-sm">Subs</span>
+          <input className="w-20 p-2 border rounded" type="number" value={subs} min={0} onChange={(e) => setSubs(Number(e.target.value))} />
+        </label>
+
+        <div className="ml-auto">
+          <button onClick={simulateTournament} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Simulate Tournament</button>
+        </div>
+      </div>
+
       <PlayerForm
         addPlayer={addPlayer}
         updatePlayer={updatePlayer}
@@ -137,6 +184,13 @@ export default function App() {
       {/* MATCH SCHEDULE */}
       {schedule && schedule.length > 0 && (
         <ScheduleDisplay schedule={schedule} teams={teams} />
+      )}
+
+      {simulationResults && (
+        <div className="mt-6 p-4 bg-white border rounded">
+          <h2 className="text-lg font-semibold mb-2">Simulation Results</h2>
+          <pre className="text-xs overflow-auto max-h-80">{JSON.stringify(simulationResults, null, 2)}</pre>
+        </div>
       )}
     </div>
   );
