@@ -15,6 +15,21 @@ export default function ScheduleDisplay({ schedule, teams }) {
     return val;
   };
 
+  const resolveTeamObject = (val) => {
+    if (!teams) return null;
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return teams[val] || null;
+    if (typeof val === 'object') return val;
+    if (typeof val === 'string') {
+      const m = val.match(/Team\s*(\d+)/i);
+      if (m) {
+        const idx = parseInt(m[1], 10) - 1;
+        return teams[idx] || null;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="mt-6">
       <h2 className="text-xl font-semibold mb-3">Match Schedule</h2>
@@ -37,26 +52,32 @@ export default function ScheduleDisplay({ schedule, teams }) {
                   <div>
                     <div className="text-sm font-medium mb-1">{getTeamByNameOrIndex(m.teamA)}</div>
                     <div className="text-sm text-gray-600">
-                      {teams && teams[m.teamA]?.players ? (
-                        teams[m.teamA].players.map((p, idx) => (
-                          <div key={idx}>{p.name} {p.captain && "⭐"}</div>
-                        ))
-                      ) : (
-                        <div>No roster available</div>
-                      )}
+                      {(() => {
+                        const tObj = resolveTeamObject(m.teamA);
+                        return tObj && tObj.players && tObj.players.length ? (
+                          tObj.players.map((p, idx) => (
+                            <div key={idx}>{p.name} {p.captain && "⭐"}</div>
+                          ))
+                        ) : (
+                          <div>No roster available</div>
+                        );
+                      })()}
                     </div>
                   </div>
 
                   <div>
                     <div className="text-sm font-medium mb-1">{getTeamByNameOrIndex(m.teamB)}</div>
                     <div className="text-sm text-gray-600">
-                      {teams && teams[m.teamB]?.players ? (
-                        teams[m.teamB].players.map((p, idx) => (
-                          <div key={idx}>{p.name} {p.captain && "⭐"}</div>
-                        ))
-                      ) : (
-                        <div>No roster available</div>
-                      )}
+                      {(() => {
+                        const tObj = resolveTeamObject(m.teamB);
+                        return tObj && tObj.players && tObj.players.length ? (
+                          tObj.players.map((p, idx) => (
+                            <div key={idx}>{p.name} {p.captain && "⭐"}</div>
+                          ))
+                        ) : (
+                          <div>No roster available</div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -7,16 +7,23 @@ import ScheduleDisplay from "./components/ScheduleDisplay";
 export default function App() {
 
   const [players, setPlayers] = useState([]);
+  const PROD_API = process.env.REACT_APP_API_URL || "https://footbot-i58t.onrender.com";
+  const TEST_API = process.env.REACT_APP_API_TEST_URL || "http://127.0.0.1:8000";
+  const [useTestApi, setUseTestApi] = useState(() => {
+    const stored = localStorage.getItem("useTestApi");
+    if (stored !== null) return stored === "true";
+    return process.env.REACT_APP_USE_TEST === "true";
+  });
+  const API_BASE = useTestApi ? TEST_API : PROD_API;
   const [teams, setTeams] = useState(null);
   const [schedule, setSchedule] = useState([]);   // NEW
   const [editingIndex, setEditingIndex] = useState(null);
 
   const [teamCount, setTeamCount] = useState(2);
-  const [teamSize, setTeamSize] = useState(5);
+  /*const [teamSize, setTeamSize] = useState(5);*/
   const [formation, setFormation] = useState("4-4-2");
   const [tournamentType, setTournamentType] = useState("round-robin");
   const [subs, setSubs] = useState(3);
-  const [simulationResults, setSimulationResults] = useState(null);
 
   const resetTeams = () => {
     setTeams(null);
@@ -62,7 +69,7 @@ export default function App() {
   };
 
   const generateTeams = async () => {
-    const res = await fetch("http://127.0.0.1:8000/generate", {
+    const res = await fetch(`${API_BASE}/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -70,7 +77,7 @@ export default function App() {
       body: JSON.stringify({
         players,
         teamCount,
-        teamSize,
+        //teamSize,
         formation,
         tournamentType,
         subs
@@ -89,16 +96,8 @@ export default function App() {
     }
   };
 
-  const simulateTournament = async () => {
-    if (!teams) return;
-    const res = await fetch("http://127.0.0.1:8000/simulate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teams, schedule, mode: tournamentType }),
-    });
-    const data = await res.json();
-    setSimulationResults(data);
-  };
+  // Simulation removed: frontend no longer triggers tournament simulations
+  // Visual simulation renderer removed — restoring simple JSON output
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -108,6 +107,21 @@ export default function App() {
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="flex items-center gap-2">
+          <span className="text-sm">API</span>
+          <select
+            className="p-2 border rounded"
+            value={useTestApi ? "test" : "prod"}
+            onChange={(e) => {
+              const val = e.target.value === "test";
+              setUseTestApi(val);
+              try { localStorage.setItem("useTestApi", val); } catch (err) {}
+            }}
+          >
+            <option value="prod">Production</option>
+            <option value="test">Testing</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2">
           <span className="text-sm">Teams</span>
           <input
@@ -119,7 +133,7 @@ export default function App() {
           />
         </label>
 
-        <label className="flex items-center gap-2">
+        {/* <label className="flex items-center gap-2">
           <span className="text-sm">Team Size</span>
           <input
             className="w-20 p-2 border rounded"
@@ -128,7 +142,7 @@ export default function App() {
             min={1}
             onChange={(e) => setTeamSize(Number(e.target.value))}
           />
-        </label>
+        </label> */}
 
         <div className="ml-auto flex gap-2">
           <button onClick={generateTeams} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Generate AI Teams</button>
@@ -160,9 +174,7 @@ export default function App() {
           <input className="w-20 p-2 border rounded" type="number" value={subs} min={0} onChange={(e) => setSubs(Number(e.target.value))} />
         </label>
 
-        <div className="ml-auto">
-          <button onClick={simulateTournament} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Simulate Tournament</button>
-        </div>
+        <div className="ml-auto" />
       </div>
 
       <PlayerForm
@@ -186,12 +198,7 @@ export default function App() {
         <ScheduleDisplay schedule={schedule} teams={teams} />
       )}
 
-      {simulationResults && (
-        <div className="mt-6 p-4 bg-white border rounded">
-          <h2 className="text-lg font-semibold mb-2">Simulation Results</h2>
-          <pre className="text-xs overflow-auto max-h-80">{JSON.stringify(simulationResults, null, 2)}</pre>
-        </div>
-      )}
+      {/* Tournament simulation removed; no local results displayed */}
     </div>
   );
 }
