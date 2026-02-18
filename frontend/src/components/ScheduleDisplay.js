@@ -12,7 +12,10 @@ export default function ScheduleDisplay({ schedule, teams, API_BASE, tournamentT
     if (val === null || val === undefined) return "TBD";
     if (typeof val === "number") {
       const t = teams[val];
-      return t ? `Team ${val + 1}` : `Team ${val}`;
+      return t ? (t.name && t.name.trim() ? t.name : `Team ${val + 1}`) : `Team ${val}`;
+    }
+    if (typeof val === 'object') {
+      return val.name || 'TBD';
     }
     return val;
   };

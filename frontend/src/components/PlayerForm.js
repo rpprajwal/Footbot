@@ -6,6 +6,7 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
   const [position, setPosition] = useState("Forward");
   const [level, setLevel] = useState("Beginner");
   const [captain, setCaptain] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (editingIndex !== null) {
@@ -19,7 +20,13 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
 
   const submit = () => {
 
-    const player = { name, position, level, captain };
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Name is required");
+      return;
+    }
+
+    const player = { name: trimmed, position, level, captain };
 
     if (editingIndex !== null) {
       updatePlayer(player);
@@ -29,6 +36,7 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
 
     setName("");
     setCaptain(false);
+    setError("");
   };
 
   return (
@@ -38,7 +46,10 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
           className="flex-1 min-w-[160px] p-2 border rounded"
           placeholder="Player name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (error && e.target.value.trim()) setError("");
+          }}
         />
 
         <select className="p-2 border rounded" value={position} onChange={(e) => setPosition(e.target.value)}>
@@ -67,6 +78,7 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
           {editingIndex !== null ? "Update Player" : "Add Player"}
         </button>
       </div>
+      {error && <div className="w-full text-red-600 text-sm mt-2">{error}</div>}
     </div>
   );
 }

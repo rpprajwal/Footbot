@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from collections import defaultdict
 from typing import List, Dict, Optional, Any
+import traceback
 import random
 import math
 
@@ -263,29 +264,32 @@ def enforce_formation_and_build_teams(players: List[Dict[str, Any]], team_count:
     return teams
 
 
-def create_schedule_list(teams: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def create_schedule_list(teams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    # Return pairings as indices so frontend can resolve names from teams array
     n = len(teams)
     schedule = []
     for i in range(n):
         for j in range(i + 1, n):
-            schedule.append({"teamA": f"Team {i+1}", "teamB": f"Team {j+1}"})
+            schedule.append({"teamA": i, "teamB": j})
     return schedule
 
 
 def generate_knockout(teams):
+    # Generate knockout bracket using indices for teams, with random seeding
     import random
     n = len(teams)
 
-    # shuffle teams (random seeding)
-    random.shuffle(teams)
+    # randomized seeding order (indices)
+    order = list(range(n))
+    random.shuffle(order)
 
     # next power of two
     pow2 = 1
     while pow2 < n:
         pow2 <<= 1
 
-    # pad BYEs
-    slots = teams + [None] * (pow2 - n)
+    # pad BYEs with None
+    slots = order + [None] * (pow2 - n)
 
     rounds = []
     match_id = 1
@@ -364,7 +368,7 @@ async def generate(request: Request) -> Dict[str, Any]:
         if not captains and team_players:
             captain = max(team_players, key=lambda x: score_map.get(x.get("level"), 1))
             captain["captain"] = True
-        teams_out.append({"players": team_players})
+        teams_out.append({"players": team_players, "name": ""})
 
     schedule = []
     if team_count > 1:

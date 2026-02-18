@@ -8,14 +8,9 @@ export default function App() {
 
   const [players, setPlayers] = useState([]);
   const PROD_API = process.env.REACT_APP_API_URL || "https://footbot-i58t.onrender.com";
-  const TEST_API = process.env.REACT_APP_API_TEST_URL || "http://127.0.0.1:8000";
-  const [useTestApi, setUseTestApi] = useState(() => {
-    const stored = localStorage.getItem("useTestApi");
-    if (stored !== null) return stored === "true";
-    return process.env.REACT_APP_USE_TEST === "true";
-  });
-  const API_BASE = useTestApi ? TEST_API : PROD_API;
+  const API_BASE = PROD_API;
   const [teams, setTeams] = useState(null);
+  const [namesConfirmed, setNamesConfirmed] = useState(false);
   const [schedule, setSchedule] = useState([]);   // NEW
   const [editingIndex, setEditingIndex] = useState(null);
 
@@ -28,6 +23,7 @@ export default function App() {
     setPlayers([]);
     setEditingIndex(null);
     setSchedule([]);   // NEW
+    setNamesConfirmed(false);
   };
 
   // ---------------- ADD PLAYER ----------------
@@ -82,7 +78,9 @@ export default function App() {
 
     const data = await res.json();
 
-    setTeams(data.teams);
+    // ensure each team has a name field to be filled in by user
+    setTeams((data.teams || []).map((t) => ({ ...t, name: (t.name || "").trim() })));
+    setNamesConfirmed(false);
     if (data.schedule && data.schedule.length) {
       setSchedule(data.schedule);
     } else {
@@ -103,21 +101,6 @@ export default function App() {
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <label className="flex items-center gap-2">
-          <span className="text-sm">API</span>
-          <select
-            className="p-2 border rounded"
-            value={useTestApi ? "test" : "prod"}
-            onChange={(e) => {
-              const val = e.target.value === "test";
-              setUseTestApi(val);
-              try { localStorage.setItem("useTestApi", val); } catch (err) {}
-            }}
-          >
-            <option value="prod">Production</option>
-            <option value="test">Testing</option>
-          </select>
-        </label>
         <label className="flex items-center gap-2">
           <span className="text-sm">Teams</span>
           <input
@@ -173,11 +156,48 @@ export default function App() {
         editPlayer={editPlayer}
       />
 
+      {/* TEAM NAMES: require user to enter names after teams are generated */}
+      {teams && !namesConfirmed && (
+        <div className="mt-6 bg-white p-4 rounded shadow">
+          <h3 className="text-lg font-semibold mb-3">Enter team names</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {teams.map((t, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="w-24">Team {idx + 1}:</div>
+                <input
+                  className="flex-1 p-2 border rounded"
+                  value={t.name || ""}
+                  placeholder={`Team ${idx + 1} name`}
+                  onChange={(e) => {
+                    const newTeams = teams.map((tt, j) => j === idx ? { ...tt, name: e.target.value } : tt);
+                    setTeams(newTeams);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                // require non-empty trimmed names
+                const trimmed = teams.map((t) => ({ ...t, name: (t.name || "").trim() }));
+                const anyEmpty = trimmed.some((t) => !t.name);
+                if (anyEmpty) return alert('Please enter a name for every team');
+                setTeams(trimmed);
+                // update schedule entries: keep indices, ScheduleDisplay will resolve names
+                setNamesConfirmed(true);
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >Confirm Names</button>
+          </div>
+        </div>
+      )}
+
       {/* GENERATED TEAMS */}
       {teams && <TeamDisplay teams={teams} />}
 
       {/* MATCH SCHEDULE */}
-      {schedule && schedule.length > 0 && (
+      {namesConfirmed && schedule && schedule.length > 0 && (
         <ScheduleDisplay schedule={schedule} teams={teams} API_BASE={API_BASE} tournamentType={tournamentType} />
       )}
 
