@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from collections import defaultdict
+from typing import List, Dict, Optional, Any
 import random
 import math
-import copy
-import traceback
+
 
 app = FastAPI()
 
@@ -14,6 +14,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # basic level -> numeric score
 score_map = {"Beginner": 1, "Intermediate": 2, "Advanced": 3}
@@ -31,11 +32,11 @@ formations = {
 
 
 @app.get("/")
-def home():
+def home() -> Dict[str, str]:
     return {"message": "AI Football Team Builder API running"}
 
 
-def parse_formation(formation_input, team_size):
+def parse_formation(formation_input: Any, team_size: int) -> Dict[str, int]:
     if isinstance(formation_input, dict):
         return formation_input
     if isinstance(formation_input, str):
@@ -49,82 +50,133 @@ def parse_formation(formation_input, team_size):
     return {"Goalkeeper": 1, "Defender": base, "Midfielder": base, "Forward": team_size - 1 - 2 * base}
 
 
-def player_rating(player):
+def player_rating(player: Dict[str, Any]) -> float:
     r = score_map.get(player.get("level", "Beginner"), 1)
     if "rating" in player:
         try:
             return float(player["rating"]) * 1.0
-        except:
+        except Exception:
             pass
     return float(r)
 
 
-def enforce_formation_and_build_teams(players, team_count, formation, team_size, subs):
-    pool = players[:]
-    random.shuffle(pool)
-    by_pos = {pos: [p for p in pool if p.get("position") == pos] for pos in positions}
-    teams = []
-    for _ in range(team_count):
-        teams.append({"starters": [], "subs": []})
+def fitness_formation(teams: List[List[Dict[str, Any]]]) -> float:
+    score_penalty = 0.0
+    pos_penalty = 0.0
+    size_penalty = 0.0
 
-    for t in range(team_count):
-        if by_pos["Goalkeeper"]:
-            teams[t]["starters"].append(by_pos["Goalkeeper"].pop())
-        else:
-            for pos in ["Defender", "Midfielder", "Forward"]:
-                if by_pos[pos]:
-                    teams[t]["starters"].append(by_pos[pos].pop())
-                    break
+    scores: List[float] = []
+    team_sizes = [len(t) for t in teams]
 
-    for pos in ["Defender", "Midfielder", "Forward"]:
-        needed = formation.get(pos, 0)
-        for t in range(team_count):
-            for _ in range(needed):
-                if by_pos[pos]:
-                    teams[t]["starters"].append(by_pos[pos].pop())
-                else:
-                    picked = None
-                    for ppos in positions:
-                        if by_pos[ppos]:
-                            # Tournament simulation endpoint removed. Use /predict-match for single match predictions.
+    total_players = sum(team_sizes) if team_sizes else 0
+    avg_team_size = total_players / len(teams) if teams else 0
+
+    total_pos_counts = {pos: 0 for pos in positions}
+    for team in teams:
+        for p in team:
+            total_pos_counts[p["position"]] += 1
+
+    expected_pos = {pos: (total_pos_counts[pos] / len(teams) if teams else 0) for pos in positions}
+
+    for team in teams:
+        score = sum(score_map.get(p["level"], 1) for p in team)
+        scores.append(score)
+
+        counts = {pos: 0 for pos in positions}
+        for p in team:
+            counts[p["position"]] += 1
+
+        if counts["Goalkeeper"] != 1:
+            pos_penalty += abs(counts["Goalkeeper"] - 1) * 5
+
+        for pos in positions:
+            pos_penalty += abs(counts[pos] - expected_pos[pos])
+
+        size_penalty += abs(len(team) - avg_team_size)
+
+    avg_score = sum(scores) / len(scores) if scores else 0
+    score_penalty = sum(abs(s - avg_score) for s in scores)
+
+    return score_penalty + pos_penalty + size_penalty
 
 
-def expected_goals(strA, strB, base=1.0):
-    if strA + strB <= 0:
-        return 0.5
-    share = strA / (strA + strB)
-    return max(0.1, base * (0.8 + share * 2.0))
+def genetic_multi_split(players: List[Dict[str, Any]], team_count: int, generations: int = 300) -> Optional[List[List[Dict[str, Any]]]]:
+    if not players:
+        return [[] for _ in range(team_count)]
+
+    best_teams: Optional[List[List[Dict[str, Any]]]] = None
+    best_score = float("inf")
+
+    for _ in range(generations):
+        random.shuffle(players)
+        teams: List[List[Dict[str, Any]]] = [[] for _ in range(team_count)]
+
+        for i, p in enumerate(players):
+            teams[i % team_count].append(p)
+
+        f = fitness_formation(teams)
+
+        if f < best_score:
+            best_score = f
+            best_teams = [t[:] for t in teams]
+
+    return best_teams
 
 
-def poisson_sample(lam):
-    L = math.exp(-lam)
+# Helper math/stat functions
+def logistic_prob(a: float, b: float, k: float = 1.0) -> float:
+    # Use difference scaled by k, then logistic
+    try:
+        x = (a - b) / max(1.0, (a + b) / 2.0) * k
+        return 1.0 / (1.0 + math.exp(-x))
+    except OverflowError:
+        return 0.0 if a < b else 1.0
+
+
+def poisson_sample(lmbda: float) -> int:
+    if lmbda <= 0:
+        return 0
+    L = math.exp(-lmbda)
     k = 0
     p = 1.0
     while p > L:
         k += 1
         p *= random.random()
-        if k > 50:
+        if k > 100:
             break
     return k - 1 if k > 0 else 0
 
 
-def compute_team_strength(team):
-    starters = team.get("starters", [])
-    subs = team.get("subs", [])
-    s = sum(player_rating(p) for p in starters) + 0.6 * sum(player_rating(p) for p in subs)
+def expected_goals(strA: float, strB: float, base: float = 1.0) -> float:
+    if strA + strB <= 0:
+        return base, base
+    diff = strA - strB
+    factor = 1.0 + (1.0 / (1.0 + math.exp(-diff / 2.0)) - 0.5)
+    total = strA + strB
+    ratioA = strA / total
+    ratioB = strB / total
+
+    lambdaA = max(0.05, base * factor * (1.5 * ratioA))
+    lambdaB = max(0.05, base * (2.0 - factor) * (1.5 * ratioB))
+    return lambdaA, lambdaB
+
+
+def compute_team_strength(team: Dict[str, Any]) -> float:
+    starters = team.get("starters", []) or team.get("players", [])
+    # Subs removed: only consider starters for strength
+    s = sum(player_rating(p) for p in starters)
     return s
 
 
-def simulate_match(teamA, teamB):
+def simulate_match(teamA: Dict[str, Any], teamB: Dict[str, Any], base: float = 1.0) -> Dict[str, Any]:
     strA = compute_team_strength(teamA)
     strB = compute_team_strength(teamB)
     probA = logistic_prob(strA, strB, k=3.0)
     probB = 1.0 - probA
-    expA = expected_goals(strA, strB, base=1.2)
-    expB = expected_goals(strB, strA, base=1.2)
+    expA, _ = expected_goals(strA, strB, base=base)
+    expB, _ = expected_goals(strB, strA, base=base)
     goalsA = poisson_sample(expA)
     goalsB = poisson_sample(expB)
-    pred = None
     if probA > probB:
         pred = "A"
     elif probB > probA:
@@ -135,150 +187,262 @@ def simulate_match(teamA, teamB):
         "predicted_winner": "TeamA" if pred == "A" else ("TeamB" if pred == "B" else "Draw"),
         "win_probability": {"teamA": probA, "teamB": probB},
         "expected_score": {"teamA": expA, "teamB": expB},
-        "simulated_score": {"teamA": goalsA, "teamB": goalsB}
+        "simulated_score": {"teamA": goalsA, "teamB": goalsB},
     }
     return result
 
 
-def generate_round_robin(teams):
+def enforce_formation_and_build_teams(players: List[Dict[str, Any]], team_count: int, formation: Dict[str, int], team_size: int, subs: int = 0) -> List[Dict[str, Any]]:
+    # Create buckets by position
+    pool = players[:]
+    random.shuffle(pool)
+    by_pos = {pos: [p for p in pool if p.get("position") == pos] for pos in positions}
+
+    teams: List[Dict[str, Any]] = []
+    for _ in range(team_count):
+        teams.append({"starters": []})
+
+    # Assign goalkeepers first
+    for t in range(team_count):
+        if by_pos["Goalkeeper"]:
+            teams[t]["starters"].append(by_pos["Goalkeeper"].pop())
+        else:
+            # fallback: pick any player
+            for pos in ["Defender", "Midfielder", "Forward"]:
+                if by_pos[pos]:
+                    teams[t]["starters"].append(by_pos[pos].pop())
+                    break
+
+    # Assign outfield according to formation
+    for pos in ["Defender", "Midfielder", "Forward"]:
+        needed = formation.get(pos, 0)
+        for t in range(team_count):
+            for _ in range(needed):
+                if by_pos[pos]:
+                    teams[t]["starters"].append(by_pos[pos].pop())
+                else:
+                    # try to fill from other positions
+                    picked = None
+                    for ppos in positions:
+                        if ppos == "Goalkeeper":
+                            continue
+                        if by_pos.get(ppos):
+                            picked = by_pos[ppos].pop()
+                            teams[t]["starters"].append(picked)
+                            break
+                    if not picked:
+                        # no players left; break early
+                        break
+
+    # Collect remaining players (including any remaining goalkeepers)
+    remaining = [p for lst in by_pos.values() for p in lst]
+    # Sort remaining by level (Advanced first)
+    level_order = {"Advanced": 3, "Intermediate": 2, "Beginner": 1}
+    remaining.sort(key=lambda x: level_order.get(x.get("level"), 1), reverse=True)
+
+    # Fill starters until all players are assigned. If teams exceed team_size, allow extras (no subs concept).
+    for p in remaining:
+        # prefer teams with fewer starters
+        teams_sorted = sorted(teams, key=lambda t: len(t["starters"]))
+        teams_sorted[0]["starters"].append(p)
+
+    # Ensure each team has at least 1 goalkeeper; if not, try to move one
+    for i, t in enumerate(teams):
+        if not any(pl.get("position") == "Goalkeeper" for pl in t["starters"]):
+            for j, other in enumerate(teams):
+                if i == j:
+                    continue
+                for pl in other["starters"]:
+                    if pl.get("position") == "Goalkeeper":
+                        other["starters"].remove(pl)
+                        t["starters"].append(pl)
+                        break
+                if any(pl.get("position") == "Goalkeeper" for pl in t["starters"]):
+                    break
+
+    return teams
+
+
+def create_schedule_list(teams: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     n = len(teams)
     schedule = []
     for i in range(n):
         for j in range(i + 1, n):
-            schedule.append({"teamA": i, "teamB": j})
+            schedule.append({"teamA": f"Team {i+1}", "teamB": f"Team {j+1}"})
     return schedule
 
 
 def generate_knockout(teams):
-    order = list(range(len(teams)))
-    random.shuffle(order)
-    pairs = []
-    while len(order) > 1:
-        a = order.pop()
-        b = order.pop()
-        pairs.append({"teamA": a, "teamB": b})
-    if order:
-        pairs.append({"teamA": order.pop(), "teamB": None})
-    return pairs
+    import random
+    n = len(teams)
+
+    # shuffle teams (random seeding)
+    random.shuffle(teams)
+
+    # next power of two
+    pow2 = 1
+    while pow2 < n:
+        pow2 <<= 1
+
+    # pad BYEs
+    slots = teams + [None] * (pow2 - n)
+
+    rounds = []
+    match_id = 1
+
+    # -------- Round 1 --------
+    first_round = []
+    for i in range(0, len(slots), 2):
+        a = slots[i]
+        b = slots[i + 1]
+
+        # auto winner if BYE present
+        if a is None:
+            winner = b
+        elif b is None:
+            winner = a
+        else:
+            winner = None
+
+        first_round.append({
+            "matchId": match_id,
+            "teamA": a,
+            "teamB": b,
+            "winner": winner
+        })
+        match_id += 1
+
+    rounds.append(first_round)
+
+    # -------- Next rounds --------
+    prev_round = first_round
+    while len(prev_round) > 1:
+        next_round = []
+
+        for i in range(0, len(prev_round), 2):
+            left = prev_round[i]
+            right = prev_round[i+1]
+
+            next_round.append({
+                "matchId": match_id,
+                "teamA": f"Winner of Match {left['matchId']}",
+                "teamB": f"Winner of Match {right['matchId']}",
+                "winner": None
+            })
+            match_id += 1
+
+        rounds.append(next_round)
+        prev_round = next_round
+
+    return rounds
+
 
 
 @app.post("/generate")
-async def generate(request: Request):
-    try:
-        data = await request.json()
-        players = data.get("players", [])
-        team_count = int(data.get("teamCount", 2))
-        team_size = int(data.get("teamSize", max(5, len(players) // team_count)))
-        formation_input = data.get("formation", "4-4-2")
-        tournament_type = data.get("tournamentType", "round-robin")
-        subs = int(data.get("subs", 3))
-        formation = parse_formation(formation_input, team_size)
-        teams = genetic_multi_split(players, team_count, formation, team_size, subs=subs)
-        schedule = []
-        if tournament_type == "round-robin":
-            schedule = generate_round_robin(teams)
-        elif tournament_type == "knockout":
-            schedule = generate_knockout(teams)
-        for t in teams:
-            for p in t.get("players", []):
-                name = p.get("name")
-                player_stats[name]
-        return {"teams": teams, "formation": formation, "schedule": schedule}
-    except Exception as e:
-        return {"error": str(e), "trace": traceback.format_exc()}
+async def generate(request: Request) -> Dict[str, Any]:
+    data = await request.json()
+    players = data.get("players", [])
+    team_count = int(data.get("teamCount", 2))
+    team_size = int(data.get("teamSize", max(5, len(players) // team_count)))
+    # Formation is always treated as 'custom' (frontend no longer provides a selection)
+    formation_input = "custom"
+    # Subs are no longer provided by frontend and are not required.
+    subs = 0
+    tournament_type = data.get("tournamentType", "round-robin")
 
+    formation = parse_formation(formation_input, team_size)
 
-@app.post("/predict-match")
-async def predict_match(request: Request):
-    try:
-        data = await request.json()
-        teamA = data.get("teamA")
-        teamB = data.get("teamB")
-        if teamA is None or teamB is None:
-            return {"error": "teamA and teamB required"}
-        res = simulate_match(teamA, teamB)
-        return res
-    except Exception as e:
-        return {"error": str(e), "trace": traceback.format_exc()}
+    teams_players = genetic_multi_split(players, team_count)
+    if not teams_players or len(teams_players) != team_count:
+        # fallback deterministic builder
+        built = enforce_formation_and_build_teams(players, team_count, formation, team_size, subs)
+        teams_players = [t["starters"] for t in built]
+
+    teams_out = []
+    for team_players in teams_players:
+        captains = [p for p in team_players if p.get("captain")]
+        if not captains and team_players:
+            captain = max(team_players, key=lambda x: score_map.get(x.get("level"), 1))
+            captain["captain"] = True
+        teams_out.append({"players": team_players})
+
+    schedule = []
+    if team_count > 1:
+        if tournament_type == "knockout":
+            schedule = generate_knockout(teams_out)
+        else:
+            schedule = create_schedule_list(teams_out)
+
+    return {"teams": teams_out, "schedule": schedule}
+
 
 
 @app.post("/simulate")
-async def simulate_tournament(request: Request):
-    try:
-        data = await request.json()
-        teams = data.get("teams", [])
-        schedule = data.get("schedule", [])
-        mode = data.get("mode", "round-robin")
-        teams_state = copy.deepcopy(teams)
-        results = []
+async def simulate(request: Request) -> Dict[str, Any]:
+    data = await request.json()
+    # Accept either indices (teamA: 0) or full team objects
+    teamA = data.get("teamA")
+    teamB = data.get("teamB")
 
-        def apply_match_stats(tA_idx, tB_idx, scoreA, scoreB):
-            if tA_idx is not None:
-                for p in teams_state[tA_idx].get("players", []):
-                    player_stats[p.get("name")]["appearances"] += 1
-            if tB_idx is not None:
-                for p in teams_state[tB_idx].get("players", []):
-                    player_stats[p.get("name")]["appearances"] += 1
-            for _ in range(scoreA):
-                if teams_state[tA_idx]["players"]:
-                    scorer = random.choice(teams_state[tA_idx]["players"])['name']
-                    player_stats[scorer]["goals"] += 1
-            for _ in range(scoreB):
-                if teams_state[tB_idx]["players"]:
-                    scorer = random.choice(teams_state[tB_idx]["players"])['name']
-                    player_stats[scorer]["goals"] += 1
+    # If teamA/teamB are indices (numbers or Team strings), try to resolve from provided teams list
+    teams = data.get("teams") or []
+    def resolve(t):
+        if isinstance(t, int):
+            return teams[t] if 0 <= t < len(teams) else {}
+        if isinstance(t, str):
+            m = None
+            import re
+            m = re.match(r"Team\s*(\d+)", t)
+            if m:
+                idx = int(m.group(1)) - 1
+                return teams[idx] if 0 <= idx < len(teams) else {}
+        if isinstance(t, dict):
+            return t
+        return {}
 
-        if mode == "knockout":
-            current_pairs = schedule[:]
-            round_no = 1
-            while current_pairs:
-                next_round = []
-                for pair in current_pairs:
-                    a = pair.get("teamA")
-                    b = pair.get("teamB")
-                    if b is None:
-                        winner = a
-                        results.append({"round": round_no, "teamA": a, "teamB": b, "winner": a, "score": None})
-                        next_round.append({"teamA": a, "teamB": None})
-                        continue
-                    sim = simulate_match(teams_state[a], teams_state[b])
-                    scA = sim["simulated_score"]["teamA"]
-                    scB = sim["simulated_score"]["teamB"]
-                    winner = a if scA >= scB else b
-                    results.append({"round": round_no, "teamA": a, "teamB": b, "winner": winner, "score": {"a": scA, "b": scB}, "prediction": sim})
-                    apply_match_stats(a, b, scA, scB)
-                    next_round.append({"teamA": winner, "teamB": None})
-                paired = []
-                buf = [p["teamA"] for p in next_round]
-                while len(buf) > 1:
-                    x = buf.pop()
-                    y = buf.pop()
-                    paired.append({"teamA": x, "teamB": y})
-                if buf:
-                    paired.append({"teamA": buf.pop(), "teamB": None})
-                current_pairs = paired
-                round_no += 1
-        else:
-            for match in schedule:
-                a = match.get("teamA")
-                b = match.get("teamB")
-                sim = simulate_match(teams_state[a], teams_state[b])
-                scA = sim["simulated_score"]["teamA"]
-                scB = sim["simulated_score"]["teamB"]
-                results.append({"teamA": a, "teamB": b, "score": {"a": scA, "b": scB}, "prediction": sim})
-                apply_match_stats(a, b, scA, scB)
+    # If a bracket/round/match provided, run simulation and advance winner into bracket
+    bracket = data.get("bracket")
+    round_idx = data.get("round")
+    match_idx = data.get("match")
 
-        scorers = sorted(player_stats.items(), key=lambda kv: kv[1].get("goals", 0), reverse=True)
-        performers = sorted(player_stats.items(), key=lambda kv: kv[1].get("rating", 0.0), reverse=True)
-        team_strengths = [(i, compute_team_strength(teams_state[i])) for i in range(len(teams_state))]
-        team_strengths.sort(key=lambda x: x[1], reverse=True)
-        return {"results": results, "leaderboard": {"top_scorers": scorers[:10], "best_performers": performers[:10], "team_strengths": team_strengths}}
-    except Exception as e:
-        return {"error": str(e), "trace": traceback.format_exc()}
+    if bracket is not None and round_idx is not None and match_idx is not None:
+        # simulate the specified match
+        try:
+            # resolve the two teams from bracket strings or indices
+            br = bracket
+            # protect mutation by copying
+            br_copy = [ [dict(m) for m in r] for r in br ]
+            match = br_copy[round_idx][match_idx]
+            a_val = match.get("teamA")
+            b_val = match.get("teamB")
+            a_obj = resolve(a_val)
+            b_obj = resolve(b_val)
+            res = simulate_match(a_obj or {}, b_obj or {})
+            # determine winner label
+            if res.get("predicted_winner") == "TeamA":
+                winner_label = a_val
+            elif res.get("predicted_winner") == "TeamB":
+                winner_label = b_val
+            else:
+                # on draw choose higher probability or random
+                winner_label = a_val if res.get("win_probability", {}).get("teamA", 0) >= res.get("win_probability", {}).get("teamB", 0) else b_val
 
+            br_copy[round_idx][match_idx]["winner"] = winner_label
 
-@app.get("/leaderboard")
-def get_leaderboard():
-    scorers = sorted(player_stats.items(), key=lambda kv: kv[1].get("goals", 0), reverse=True)
-    performers = sorted(player_stats.items(), key=lambda kv: kv[1].get("rating", 0.0), reverse=True)
-    return {"top_scorers": scorers[:10], "best_performers": performers[:10]}
+            # propagate to next round
+            if round_idx + 1 < len(br_copy):
+                tgt_idx = match_idx // 2
+                tgt = br_copy[round_idx + 1][tgt_idx]
+                if tgt.get("teamA") is None:
+                    tgt["teamA"] = winner_label
+                elif tgt.get("teamB") is None:
+                    tgt["teamB"] = winner_label
+
+            return {"result": res, "bracket": br_copy}
+        except Exception as e:
+            return {"error": str(e), "trace": traceback.format_exc()}
+
+    a_obj = resolve(teamA)
+    b_obj = resolve(teamB)
+    result = simulate_match(a_obj, b_obj)
+    return result

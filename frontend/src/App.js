@@ -21,9 +21,7 @@ export default function App() {
 
   const [teamCount, setTeamCount] = useState(2);
   /*const [teamSize, setTeamSize] = useState(5);*/
-  const [formation, setFormation] = useState("4-4-2");
   const [tournamentType, setTournamentType] = useState("round-robin");
-  const [subs, setSubs] = useState(3);
 
   const resetTeams = () => {
     setTeams(null);
@@ -78,9 +76,7 @@ export default function App() {
         players,
         teamCount,
         //teamSize,
-        formation,
-        tournamentType,
-        subs
+        tournamentType
       }),
     });
 
@@ -152,16 +148,6 @@ export default function App() {
 
       <div className="flex gap-3 items-center mb-4">
         <label className="flex items-center gap-2">
-          <span className="text-sm">Formation</span>
-          <select className="p-2 border rounded" value={formation} onChange={(e) => setFormation(e.target.value)}>
-            <option>4-4-2</option>
-            <option>4-3-3</option>
-            <option>3-5-2</option>
-            <option>Custom</option>
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2">
           <span className="text-sm">Tournament</span>
           <select className="p-2 border rounded" value={tournamentType} onChange={(e) => setTournamentType(e.target.value)}>
             <option value="round-robin">Round-robin</option>
@@ -169,10 +155,7 @@ export default function App() {
           </select>
         </label>
 
-        <label className="flex items-center gap-2">
-          <span className="text-sm">Subs</span>
-          <input className="w-20 p-2 border rounded" type="number" value={subs} min={0} onChange={(e) => setSubs(Number(e.target.value))} />
-        </label>
+        {/* Subs removed: not necessary */}
 
         <div className="ml-auto" />
       </div>
@@ -195,7 +178,7 @@ export default function App() {
 
       {/* MATCH SCHEDULE */}
       {schedule && schedule.length > 0 && (
-        <ScheduleDisplay schedule={schedule} teams={teams} />
+        <ScheduleDisplay schedule={schedule} teams={teams} API_BASE={API_BASE} tournamentType={tournamentType} />
       )}
 
       {/* Tournament simulation removed; no local results displayed */}
