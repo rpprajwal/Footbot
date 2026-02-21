@@ -11,6 +11,9 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
   const [touchActiveIndex, setTouchActiveIndex] = useState(null);
   const [touchOffset, setTouchOffset] = useState(0);
 
+  // Refs for drag handles to attach non-passive wheel/touch listeners
+  const dragHandlesRef = useRef({});
+
   // Desktop HTML5 Drag and Drop
   const onDragStart = (e, index) => {
     dragIndex.current = index;
@@ -64,7 +67,7 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
     e.preventDefault(); // Prevent default touch actions (like scrolling) on the element
   };
 
-  const onTouchEnd = (e, index) => {
+  const onTouchEnd = (index) => {
     if (touchActiveIndex === null) return;
     document.body.style.overflow = ''; // Restore scrolling
 
@@ -90,6 +93,50 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
     setTouchActiveIndex(null);
     setTouchOffset(0);
   };
+
+  React.useEffect(() => {
+    const handles = dragHandlesRef.current;
+
+    // Define the actual listeners that we will bind
+    const handleTouchStart = (e) => {
+      e.preventDefault(); // Stop native behavior right away
+      const i = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+      onTouchStart(e, i);
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault(); // crucial to prevent mobile browser scroll
+      const i = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+      onTouchMove(e, i);
+    };
+
+    const handleTouchEnd = (e) => {
+      e.preventDefault();
+      const i = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+      onTouchEnd(i);
+    };
+
+    // Attach non-passive listeners to all drag hook elements
+    Object.values(handles).forEach(el => {
+      if (el) {
+        el.addEventListener('touchstart', handleTouchStart, { passive: false });
+        el.addEventListener('touchmove', handleTouchMove, { passive: false });
+        el.addEventListener('touchend', handleTouchEnd, { passive: false });
+        el.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+      }
+    });
+
+    return () => {
+      Object.values(handles).forEach(el => {
+        if (el) {
+          el.removeEventListener('touchstart', handleTouchStart);
+          el.removeEventListener('touchmove', handleTouchMove);
+          el.removeEventListener('touchend', handleTouchEnd);
+          el.removeEventListener('touchcancel', handleTouchEnd);
+        }
+      });
+    };
+  }, [touchActiveIndex, touchOffset, players]);
 
   return (
     <div className="mb-8">
@@ -161,10 +208,10 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
               <div className="flex gap-2 mt-3 sm:mt-0 ml-3 justify-end sm:justify-start w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-3 sm:pt-0">
                 {/* Mobile Touch Drag Hook */}
                 <div
+                  ref={el => dragHandlesRef.current[i] = el}
+                  data-index={i}
+                  style={{ touchAction: 'none' }}
                   className="flex sm:hidden mr-auto items-center justify-center p-2 text-slate-500 active:text-neon-green cursor-grab active:cursor-grabbing"
-                  onTouchStart={(e) => onTouchStart(e, i)}
-                  onTouchMove={(e) => onTouchMove(e, i)}
-                  onTouchEnd={(e) => onTouchEnd(e, i)}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
