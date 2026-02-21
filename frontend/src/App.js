@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import PlayerForm from "./components/PlayerForm";
-import FaultyTerminal from "./components/FaultyTerminal";
 import PlayerList from "./components/PlayerList";
 import TeamDisplay from "./components/TeamDisplay";
 import ScheduleDisplay from "./components/ScheduleDisplay";
@@ -117,152 +116,154 @@ export default function App() {
   // Visual simulation renderer removed — restoring simple JSON output
 
   return (
-    <div className="max-w-4xl mx-auto p-6" style={{ position: 'relative', zIndex: 1 }}>
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-300 via-gray-400 to-gray-500 bg-clip-text text-transparent">AI Football Team Builder</h1>
-        <p className="text-sm font-bold text-gray-400">Quickly create balanced teams and a match schedule.</p>
-      </header>
+    <div className="min-h-screen pt-8 pb-20 px-4 sm:px-6 relative overflow-hidden z-10">
 
-      <FaultyTerminal
-        className="faulty-terminal-bg"
-        style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: -1, pointerEvents: 'none' }}
-        scale={1}
-        gridMul={[2, 1]}
-        digitSize={1.5}
-        timeScale={0.5}
-        pause={false}
-        scanlineIntensity={0.3}
-        glitchAmount={1}
-        flickerAmount={1.2}
-        noiseAmp={0}
-        chromaticAberration={0}
-        dither={0}
-        curvature={0.2}
-        tint="#0c6426"
-        mouseReact
-        mouseStrength={0.2}
-        pageLoadAnimation
-        brightness={1}
-      />
+      {/* Decorative field background elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle_at_center,rgba(0,255,102,0.03)_0%,transparent_60%)] -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_0%,#000_70%,transparent_100%)] -z-10 pointer-events-none"></div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <label className="flex items-center gap-2">
-          <span className="text-sm">Teams</span>
-          <input
-            className="w-20 p-2 border rounded"
-            type="number"
-            value={teamCount}
-            min={2}
-            onChange={(e) => setTeamCount(Number(e.target.value))}
-          />
-        </label>
-
-        {/* <label className="flex items-center gap-2">
-          <span className="text-sm">Team Size</span>
-          <input
-            className="w-20 p-2 border rounded"
-            type="number"
-            value={teamSize}
-            min={1}
-            onChange={(e) => setTeamSize(Number(e.target.value))}
-          />
-        </label> */}
-
-        <div className="ml-auto flex gap-2">
-          <button onClick={generateTeams} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Generate AI Teams</button>
-          <button onClick={resetTeams} className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">New Match / Reset</button>
-        </div>
-      </div>
-
-      <div className="flex gap-3 items-center mb-4">
-        <label className="flex items-center gap-2">
-          <span className="text-sm">Tournament</span>
-          <select className="p-2 border rounded" value={tournamentType} onChange={(e) => setTournamentType(e.target.value)}>
-            <option value="round-robin">Round-robin</option>
-            <option value="knockout">Knockout</option>
-          </select>
-        </label>
-
-        {/* Subs removed: not necessary */}
-
-        <div className="ml-auto" />
-      </div>
-
-      <PlayerForm
-        addPlayer={addPlayer}
-        updatePlayer={updatePlayer}
-        editingIndex={editingIndex}
-        players={players}
-        showToast={showToast}
-      />
-
-      <PlayerList
-        players={players}
-        deletePlayer={deletePlayer}
-        editPlayer={editPlayer}
-        reorderPlayers={reorderPlayers}
-        showDetails={showDetails}
-        showToast={showToast}
-      />
-
-      {/* TEAM NAMES: require user to enter names after teams are generated */}
-      {teams && !namesConfirmed && (
-        <div className="mt-6 bg-white p-4 rounded shadow">
-          <h3 className="text-lg font-semibold mb-3">Enter team names</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {teams.map((t, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <div className="w-24">Team {idx + 1}:</div>
-                <input
-                  className="flex-1 p-2 border rounded"
-                  value={t.name || ""}
-                  placeholder={`Team ${idx + 1} name`}
-                  onChange={(e) => {
-                    const newTeams = teams.map((tt, j) => j === idx ? { ...tt, name: e.target.value } : tt);
-                    setTeams(newTeams);
-                  }}
-                />
-              </div>
-            ))}
+      <div className="max-w-5xl mx-auto">
+        <header className="mb-10 text-center">
+          <div className="inline-block relative">
+            <h1 className="text-5xl sm:text-7xl font-display text-white tracking-wider mb-2 drop-shadow-[0_0_15px_rgba(0,255,102,0.5)]">
+              TEAM<span className="text-neon-green">BUILDER</span>
+            </h1>
+            <div className="absolute -bottom-2 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-neon-green to-transparent"></div>
           </div>
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                // require non-empty trimmed names
-                const trimmed = teams.map((t) => ({ ...t, name: (t.name || "").trim() }));
-                const anyEmpty = trimmed.some((t) => !t.name);
-                if (anyEmpty) return alert('Please enter a name for every team');
-                setTeams(trimmed);
-                // update schedule entries: keep indices, ScheduleDisplay will resolve names
-                setNamesConfirmed(true);
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >Confirm Names</button>
+          <p className="text-lg text-slate-400 mt-4 font-body font-light">Create perfectly balanced football squads with precision AI</p>
+        </header>
+
+        {/* CONTROLS DASHBOARD */}
+        <div className="glass-panel p-6 mb-8 flex flex-col md:flex-row items-center gap-6 justify-between relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-neon-green"></div>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 w-full md:w-auto">
+            <label className="flex flex-col gap-1 w-24">
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Teams</span>
+              <input
+                className="glass-input text-center text-xl font-display font-medium"
+                type="number"
+                value={teamCount}
+                min={2}
+                onChange={(e) => setTeamCount(Number(e.target.value))}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 w-40">
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Tournament</span>
+              <select
+                className="glass-input text-lg cursor-pointer"
+                value={tournamentType}
+                onChange={(e) => setTournamentType(e.target.value)}
+              >
+                <option value="round-robin" className="bg-pitch-dark text-white">Round-robin</option>
+                <option value="knockout" className="bg-pitch-dark text-white">Knockout</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="flex gap-4 w-full md:w-auto justify-center">
+            <button onClick={resetTeams} className="btn-secondary whitespace-nowrap">
+              Reset
+            </button>
+            <button onClick={generateTeams} className="btn-primary whitespace-nowrap flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+              </svg>
+              Auto-Build
+            </button>
           </div>
         </div>
-      )}
 
-      {/* GENERATED TEAMS */}
-      {teams && <TeamDisplay teams={teams} />}
 
-      <Modal open={!!selectedPlayer} title={selectedPlayer ? selectedPlayer.name : ""} onClose={closeDetails}>
-        {selectedPlayer && (
-          <div className="space-y-2">
-            <div><strong>Position:</strong> {selectedPlayer.position}</div>
-            <div><strong>Level:</strong> {selectedPlayer.level}</div>
-            <div>{selectedPlayer.captain && <span className="text-yellow-500">⭐ Team Captain</span>}</div>
+
+        <PlayerForm
+          addPlayer={addPlayer}
+          updatePlayer={updatePlayer}
+          editingIndex={editingIndex}
+          players={players}
+          showToast={showToast}
+        />
+
+        <PlayerList
+          players={players}
+          deletePlayer={deletePlayer}
+          editPlayer={editPlayer}
+          reorderPlayers={reorderPlayers}
+          showDetails={showDetails}
+          showToast={showToast}
+        />
+
+        {/* TEAM NAMES: require user to enter names after teams are generated */}
+        {teams && !namesConfirmed && (
+          <div className="mt-8 mb-8 glass-panel p-6 border-l-4 border-l-neon-green">
+            <h3 className="text-2xl font-display text-white mb-6 uppercase tracking-wide flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-neon-green"></span>
+              Name Your Squads
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {teams.map((t, idx) => (
+                <div key={idx} className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-slate-400 uppercase tracking-wider">Squad {idx + 1}</label>
+                  <input
+                    className="glass-input text-lg"
+                    value={t.name || ""}
+                    placeholder={`e.g., FC ${idx + 1}`}
+                    onChange={(e) => {
+                      const newTeams = teams.map((tt, j) => j === idx ? { ...tt, name: e.target.value } : tt);
+                      setTeams(newTeams);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => {
+                  const trimmed = teams.map((t) => ({ ...t, name: (t.name || "").trim() }));
+                  const anyEmpty = trimmed.some((t) => !t.name);
+                  if (anyEmpty) return alert('Please enter a name for every team');
+                  setTeams(trimmed);
+                  setNamesConfirmed(true);
+                }}
+                className="btn-primary"
+              >Confirm Squad Names</button>
+            </div>
           </div>
         )}
-      </Modal>
 
-      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />
+        {/* GENERATED TEAMS */}
+        {teams && <TeamDisplay teams={teams} />}
 
-      {/* MATCH SCHEDULE */}
-      {namesConfirmed && schedule && schedule.length > 0 && (
-        <ScheduleDisplay schedule={schedule} teams={teams} API_BASE={API_BASE} tournamentType={tournamentType} />
-      )}
+        <Modal open={!!selectedPlayer} title={selectedPlayer ? selectedPlayer.name : ""} onClose={closeDetails}>
+          {selectedPlayer && (
+            <div className="space-y-4 p-2">
+              <div className="flex justify-between items-center border-b border-gray-700 pb-3">
+                <strong className="text-slate-300">Position</strong>
+                <span className="bg-pitch-light px-3 py-1 rounded-md text-neon-green font-bold">{selectedPlayer.position}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-gray-700 pb-3">
+                <strong className="text-slate-300">Level</strong>
+                <span className="font-display text-xl text-white">{selectedPlayer.level}</span>
+              </div>
+              {selectedPlayer.captain && (
+                <div className="flex items-center justify-center gap-2 mt-4 text-yellow-500 font-bold bg-yellow-500/10 py-3 rounded-lg border border-yellow-500/20">
+                  ⭐ Team Captain
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
 
-      {/* Tournament simulation removed; no local results displayed */}
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />
+
+        {/* MATCH SCHEDULE */}
+        {namesConfirmed && schedule && schedule.length > 0 && (
+          <ScheduleDisplay schedule={schedule} teams={teams} API_BASE={API_BASE} tournamentType={tournamentType} />
+        )}
+
+        {/* Tournament simulation removed; no local results displayed */}
+      </div>
     </div>
   );
 }

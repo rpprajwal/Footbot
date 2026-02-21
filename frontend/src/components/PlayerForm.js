@@ -43,42 +43,55 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
   };
 
   return (
-    <form onSubmit={submit} className="mb-6 bg-white p-4 rounded shadow transition-transform hover:translate-y-[-2px]">
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          className="flex-1 min-w-[160px] p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-          placeholder="Player name"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            if (error && e.target.value.trim()) setError("");
-          }}
-        />
-
-        <select className="p-2 border rounded" value={position} onChange={(e) => setPosition(e.target.value)}>
-          <option>Forward</option>
-          <option>Midfielder</option>
-          <option>Defender</option>
-          <option>Goalkeeper</option>
-        </select>
-
-        <select className="p-2 border rounded" value={level} onChange={(e) => setLevel(e.target.value)}>
-          <option>Beginner</option>
-          <option>Intermediate</option>
-          <option>Advanced</option>
-        </select>
-
-        <label className="flex items-center gap-2 ml-2">
+    <form onSubmit={submit} className="mb-8 glass-panel p-6 transition-all hover:shadow-2xl hover:shadow-neon-green/10">
+      <div className="flex flex-col sm:flex-row gap-4 items-end">
+        <label className="flex flex-col gap-1 flex-1 w-full">
+          <span className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Player Name</span>
           <input
-            type="checkbox"
-            checked={captain}
-            onChange={(e) => setCaptain(e.target.checked)}
+            className="glass-input"
+            placeholder="e.g. Lionel Messi"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (error && e.target.value.trim()) setError("");
+            }}
           />
-          <span className="text-sm">Captain</span>
         </label>
 
-        <button type="submit" className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
-          {editingIndex !== null ? "Update Player" : "Add Player"}
+        <label className="flex flex-col gap-1 w-full sm:w-auto">
+          <span className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Position</span>
+          <select className="glass-input cursor-pointer" value={position} onChange={(e) => setPosition(e.target.value)}>
+            <option className="bg-pitch-dark text-white">Forward</option>
+            <option className="bg-pitch-dark text-white">Midfielder</option>
+            <option className="bg-pitch-dark text-white">Defender</option>
+            <option className="bg-pitch-dark text-white">Goalkeeper</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 w-full sm:w-auto">
+          <span className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Level</span>
+          <select className="glass-input cursor-pointer" value={level} onChange={(e) => setLevel(e.target.value)}>
+            <option className="bg-pitch-dark text-white">Beginner</option>
+            <option className="bg-pitch-dark text-white">Intermediate</option>
+            <option className="bg-pitch-dark text-white">Advanced</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col items-center justify-center gap-1 cursor-pointer w-full sm:w-20">
+          <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Captain</span>
+          <div className={`mt-1 w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${captain ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : 'border-white/10 text-slate-500 hover:border-white/30'}`}>
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={captain}
+              onChange={(e) => setCaptain(e.target.checked)}
+            />
+            <span className="text-xl leading-none">C</span>
+          </div>
+        </label>
+
+        <button type="submit" className="btn-primary w-full sm:w-auto">
+          {editingIndex !== null ? "Update" : "Add Player"}
         </button>
       </div>
       {error && <div className="w-full text-red-600 text-sm mt-2">{error}</div>}
