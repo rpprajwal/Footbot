@@ -119,8 +119,8 @@ export default function App() {
   return (
     <div className="max-w-4xl mx-auto p-6" style={{ position: 'relative', zIndex: 1 }}>
       <header className="mb-6">
-        <h1 className="text-3xl font-bold">AI Football Team Builder</h1>
-        <p className="text-sm text-gray-600">Quickly create balanced teams and a match schedule.</p>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-300 via-gray-400 to-gray-500 bg-clip-text text-transparent">AI Football Team Builder</h1>
+        <p className="text-sm font-bold text-gray-400">Quickly create balanced teams and a match schedule.</p>
       </header>
 
       <FaultyTerminal

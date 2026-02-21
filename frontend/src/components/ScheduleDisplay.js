@@ -39,7 +39,7 @@ export default function ScheduleDisplay({ schedule, teams, API_BASE, tournamentT
   if (bracket) {
     return (
       <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-3">Match Schedule {tournamentType === 'knockout' && <span className="ml-2 text-sm text-gray-500">(Knockout)</span>}</h2>
+        <h2 className="text-xl font-bold mb-3 grey-200">Match Schedule {tournamentType === 'knockout' && <span className="ml-2 text-sm text-gray-500">(Knockout)</span>}</h2>
         <div className="space-y-3">
           {bracket.map((round, rIdx) => (
             <div key={rIdx} className="mb-4">
