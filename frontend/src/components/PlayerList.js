@@ -3,7 +3,10 @@ import React, { useRef } from "react";
 export default function PlayerList({ players, deletePlayer, editPlayer, reorderPlayers, showDetails, showToast }) {
 
   const dragIndex = useRef(null);
+  const touchStartY = useRef(null);
+  const touchCurrentIndex = useRef(null);
 
+  // Desktop HTML5 Drag and Drop
   const onDragStart = (e, index) => {
     dragIndex.current = index;
     e.dataTransfer.effectAllowed = "move";
@@ -17,11 +20,47 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
     e.preventDefault();
     const from = dragIndex.current;
     const to = index;
-    if (from === null || from === undefined) return;
-    if (from === to) return;
+    if (from === null || from === undefined || from === to) return;
     reorderPlayers && reorderPlayers(from, to);
     showToast && showToast('Player order updated', 'success');
     dragIndex.current = null;
+  };
+
+  // Mobile Touch Drag Handle
+  const onTouchStart = (e, index) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentIndex.current = index;
+    document.body.style.overflow = 'hidden'; // Prevent scrolling while dragging
+  };
+
+  const onTouchMove = (e, index) => {
+    if (touchCurrentIndex.current === null) return;
+    e.preventDefault(); // Prevent default touch actions (like scrolling) on the element
+  };
+
+  const onTouchEnd = (e, index) => {
+    if (touchCurrentIndex.current === null) return;
+    document.body.style.overflow = ''; // Restore scrolling
+
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Estimate roughly 80px per card height to determine how many slots to move
+    const slotsMoved = Math.round(deltaY / 80);
+
+    if (slotsMoved !== 0) {
+      let toIndex = touchCurrentIndex.current + slotsMoved;
+      // Clamp to bounds
+      toIndex = Math.max(0, Math.min(toIndex, players.length - 1));
+
+      if (toIndex !== touchCurrentIndex.current) {
+        reorderPlayers && reorderPlayers(touchCurrentIndex.current, toIndex);
+        showToast && showToast('Player order updated', 'success');
+      }
+    }
+
+    touchStartY.current = null;
+    touchCurrentIndex.current = null;
   };
 
   return (
@@ -60,7 +99,19 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
               </div>
             </div>
 
-            <div className="flex gap-2 mt-3 sm:mt-0 ml-3">
+            <div className="flex gap-2 mt-3 sm:mt-0 ml-3 justify-end sm:justify-start w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-3 sm:pt-0">
+              {/* Mobile Touch Drag Hook */}
+              <div
+                className="flex sm:hidden mr-auto items-center justify-center p-2 text-slate-500 active:text-neon-green cursor-grab active:cursor-grabbing"
+                onTouchStart={(e) => onTouchStart(e, i)}
+                onTouchMove={(e) => onTouchMove(e, i)}
+                onTouchEnd={(e) => onTouchEnd(e, i)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+                </svg>
+              </div>
+
               <button onClick={() => editPlayer(i)} className="px-4 py-2 bg-white/5 text-white font-bold text-sm rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all active:scale-95">Edit</button>
               <button onClick={() => { deletePlayer(i); showToast && showToast('Player deleted', 'info'); }} className="btn-danger">Delete</button>
             </div>
@@ -72,7 +123,7 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
           </div>
         )}
       </div>
-      <div className="text-xs text-slate-500 mt-3 text-center sm:hidden font-bold uppercase tracking-widest">Drag players to reorder</div>
+      <div className="text-xs text-slate-500 mt-3 text-center sm:hidden font-bold uppercase tracking-widest">Hold and drag the hook to reorder</div>
     </div>
   );
 }
