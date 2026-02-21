@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import PlayerForm from "./components/PlayerForm";
+import FaultyTerminal from "./components/FaultyTerminal";
 import PlayerList from "./components/PlayerList";
 import TeamDisplay from "./components/TeamDisplay";
 import ScheduleDisplay from "./components/ScheduleDisplay";
+import Toast from "./components/Toast";
+import Modal from "./components/Modal";
 
 export default function App() {
 
@@ -26,6 +29,13 @@ export default function App() {
     setNamesConfirmed(false);
   };
 
+  const [toast, setToast] = useState({ message: "", type: "info" });
+  const showToast = (message, type = "info") => {
+    setToast({ message, type });
+  };
+
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
   // ---------------- ADD PLAYER ----------------
   const addPlayer = (player) => {
     setPlayers([...players, player]);
@@ -41,6 +51,19 @@ export default function App() {
   // ---------------- EDIT PLAYER ----------------
   const editPlayer = (index) => {
     setEditingIndex(index);
+  };
+
+  const showDetails = (index) => {
+    setSelectedPlayer(players[index]);
+  };
+
+  const closeDetails = () => setSelectedPlayer(null);
+
+  const reorderPlayers = (from, to) => {
+    const list = [...players];
+    const [item] = list.splice(from, 1);
+    list.splice(to, 0, item);
+    setPlayers(list);
   };
 
   const updatePlayer = (player) => {
@@ -94,11 +117,33 @@ export default function App() {
   // Visual simulation renderer removed — restoring simple JSON output
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6" style={{ position: 'relative', zIndex: 1 }}>
       <header className="mb-6">
         <h1 className="text-3xl font-bold">AI Football Team Builder</h1>
         <p className="text-sm text-gray-600">Quickly create balanced teams and a match schedule.</p>
       </header>
+
+      <FaultyTerminal
+        className="faulty-terminal-bg"
+        style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: -1, pointerEvents: 'none' }}
+        scale={1}
+        gridMul={[2, 1]}
+        digitSize={1.5}
+        timeScale={0.5}
+        pause={false}
+        scanlineIntensity={0.3}
+        glitchAmount={1}
+        flickerAmount={1.2}
+        noiseAmp={0}
+        chromaticAberration={0}
+        dither={0}
+        curvature={0.2}
+        tint="#0c6426"
+        mouseReact
+        mouseStrength={0.2}
+        pageLoadAnimation
+        brightness={1}
+      />
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <label className="flex items-center gap-2">
@@ -148,12 +193,16 @@ export default function App() {
         updatePlayer={updatePlayer}
         editingIndex={editingIndex}
         players={players}
+        showToast={showToast}
       />
 
       <PlayerList
         players={players}
         deletePlayer={deletePlayer}
         editPlayer={editPlayer}
+        reorderPlayers={reorderPlayers}
+        showDetails={showDetails}
+        showToast={showToast}
       />
 
       {/* TEAM NAMES: require user to enter names after teams are generated */}
@@ -195,6 +244,18 @@ export default function App() {
 
       {/* GENERATED TEAMS */}
       {teams && <TeamDisplay teams={teams} />}
+
+      <Modal open={!!selectedPlayer} title={selectedPlayer ? selectedPlayer.name : ""} onClose={closeDetails}>
+        {selectedPlayer && (
+          <div className="space-y-2">
+            <div><strong>Position:</strong> {selectedPlayer.position}</div>
+            <div><strong>Level:</strong> {selectedPlayer.level}</div>
+            <div>{selectedPlayer.captain && <span className="text-yellow-500">⭐ Team Captain</span>}</div>
+          </div>
+        )}
+      </Modal>
+
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />
 
       {/* MATCH SCHEDULE */}
       {namesConfirmed && schedule && schedule.length > 0 && (

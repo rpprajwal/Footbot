@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, players }) {
+export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, players, showToast }) {
 
   const [name, setName] = useState("");
   const [position, setPosition] = useState("Forward");
@@ -18,7 +18,8 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
     }
   }, [editingIndex, players]);
 
-  const submit = () => {
+  const submit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
 
     const trimmed = name.trim();
     if (!trimmed) {
@@ -30,8 +31,10 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
 
     if (editingIndex !== null) {
       updatePlayer(player);
+      showToast && showToast("Player updated", "success");
     } else {
       addPlayer(player);
+      showToast && showToast("Player added", "success");
     }
 
     setName("");
@@ -40,10 +43,10 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
   };
 
   return (
-    <div className="mb-6 bg-white p-4 rounded shadow">
+    <form onSubmit={submit} className="mb-6 bg-white p-4 rounded shadow transition-transform hover:translate-y-[-2px]">
       <div className="flex flex-wrap gap-3 items-center">
         <input
-          className="flex-1 min-w-[160px] p-2 border rounded"
+          className="flex-1 min-w-[160px] p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
           placeholder="Player name"
           value={name}
           onChange={(e) => {
@@ -74,11 +77,11 @@ export default function PlayerForm({ addPlayer, updatePlayer, editingIndex, play
           <span className="text-sm">Captain</span>
         </label>
 
-        <button onClick={submit} className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        <button type="submit" className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
           {editingIndex !== null ? "Update Player" : "Add Player"}
         </button>
       </div>
       {error && <div className="w-full text-red-600 text-sm mt-2">{error}</div>}
-    </div>
+    </form>
   );
 }

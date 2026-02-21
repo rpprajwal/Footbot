@@ -9,13 +9,13 @@ export default function ScheduleDisplay({ schedule, teams, API_BASE, tournamentT
 
   const getTeamByNameOrIndex = (val) => {
     if (!teams) return val;
-    if (val === null || val === undefined) return "TBD";
+    if (val === null || val === undefined) return "BYE";
     if (typeof val === "number") {
       const t = teams[val];
       return t ? (t.name && t.name.trim() ? t.name : `Team ${val + 1}`) : `Team ${val}`;
     }
     if (typeof val === 'object') {
-      return val.name || 'TBD';
+      return val.name || 'BYE';
     }
     return val;
   };
