@@ -39,7 +39,10 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
     touchStartY.current = e.touches[0].pageY;
     setTouchActiveIndex(index);
     setTouchOffset(0);
-    document.body.style.overflow = 'hidden'; // Prevent scrolling while dragging
+
+    // Completely freeze background scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
 
     pointerY.current = e.touches[0].clientY;
     const scrollLoop = () => {
@@ -69,7 +72,10 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
 
   const onTouchEnd = (index) => {
     if (touchActiveIndex === null) return;
-    document.body.style.overflow = ''; // Restore scrolling
+
+    // Restore background scrolling
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
 
     if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
     pointerY.current = null;
@@ -126,7 +132,17 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
       }
     });
 
+    // Define global touchmove preventer to firmly lock the background
+    const preventGlobalTouch = (e) => {
+      if (touchActiveIndex !== null) {
+        e.preventDefault();
+      }
+    };
+
+    document.body.addEventListener('touchmove', preventGlobalTouch, { passive: false });
+
     return () => {
+      document.body.removeEventListener('touchmove', preventGlobalTouch);
       Object.values(handles).forEach(el => {
         if (el) {
           el.removeEventListener('touchstart', handleTouchStart);
