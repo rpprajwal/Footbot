@@ -164,8 +164,8 @@ export default function ScheduleDisplay({ schedule, teams, API_BASE, tournamentT
                               return tObj && tObj.players && tObj.players.length ? (
                                 tObj.players.map((p, idx) => (
                                   <div key={idx} className="flex items-center justify-end md:justify-start gap-2">
-                                    {p.captain && <span className="bg-yellow-500/10 text-yellow-500 text-[9px] uppercase font-bold px-1 py-0.5 rounded mr-1">C</span>} {p.name}
                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                                    {p.name} {p.captain && <span className="bg-yellow-500/10 text-yellow-500 text-[9px] uppercase font-bold px-1 py-0.5 rounded ml-1">C</span>}
                                   </div>
                                 ))
                               ) : (
@@ -264,8 +264,8 @@ export default function ScheduleDisplay({ schedule, teams, API_BASE, tournamentT
                         return tObj && tObj.players && tObj.players.length ? (
                           tObj.players.map((p, idx) => (
                             <div key={idx} className="flex items-center justify-end md:justify-start gap-2">
-                              {p.captain && <span className="bg-yellow-500/10 text-yellow-500 text-[9px] uppercase font-bold px-1 py-0.5 rounded mr-1">C</span>} {p.name}
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                              {p.name} {p.captain && <span className="bg-yellow-500/10 text-yellow-500 text-[9px] uppercase font-bold px-1 py-0.5 rounded ml-1">C</span>}
                             </div>
                           ))
                         ) : (
