@@ -152,6 +152,7 @@ export default function PlayerList({ players, deletePlayer, editPlayer, reorderP
         }
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [touchActiveIndex, touchOffset, players]);
 
   return (
