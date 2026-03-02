@@ -124,11 +124,14 @@ export default function App() {
 
       <div className="max-w-5xl mx-auto">
         <header className="mb-10 text-center">
-          <div className="inline-block relative">
+          <div className="flex flex-col items-center">
+            <img src={process.env.PUBLIC_URL + '/logo.png'} alt="AI Football Team Builder" className="mb-4 h-20 w-auto" />
+            <div className="inline-block relative">
             <h1 className="text-5xl sm:text-7xl font-display text-white tracking-wider mb-2 drop-shadow-[0_0_15px_rgba(0,255,102,0.5)]">
               TEAM<span className="text-neon-green">BUILDER</span>
             </h1>
             <div className="absolute -bottom-2 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-neon-green to-transparent"></div>
+            </div>
           </div>
           <p className="text-lg text-slate-400 mt-4 font-body font-light">Create perfectly balanced football squads with precision AI</p>
         </header>
